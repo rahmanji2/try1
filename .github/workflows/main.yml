@@ -1,0 +1,48 @@
+name: Mrbotrx BDIX Playlists
+
+on:
+  schedule:
+    # প্রতিদিন প্রতি ৬ ঘণ্টায় একবার আপডেট চেক করবে
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-mrbotrx-bdix
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch and Sync playlists folder
+        run: |
+          mkdir -p bdix_kb
+          
+          # রিপোজিটরি ক্লোন
+          git clone --depth 1 https://github.com/Mrbotrx/BDXI_KB.git temp_bdix_kb || true
+          
+          # playlists ফোল্ডারের ভেতরের সব ফাইল কপি
+          if [ -d "temp_bdix_kb/playlists" ]; then
+            cp -r temp_bdix_kb/playlists/* ./bdix_kb/ 2>/dev/null || true
+          fi
+          
+          rm -rf temp_bdix_kb
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add bdix_kb/
+          if git diff --staged --quiet; then
+            echo "No updates detected in BDXI_KB."
+          else
+            git commit -m "Auto sync BDXI_KB playlists: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            git push origin main
+          fi
